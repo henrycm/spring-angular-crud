@@ -1,0 +1,19 @@
+
+<table class="table table-bordered table-sm table-hover" >
+  <thead>
+    <tr>
+      <td>Id</td>
+      <td>Nombre</td>
+      <td>Action</td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let p of productos" >
+      <td>{{ p.id }}</td>
+      <td (click)="detail(p)">{{ p.description }}</td>
+      <td><button (click)="remove(p)" class="btn btn-primary btn-sm">X</button></td>
+    </tr>
+  </tbody>
+</table>
+<app-pager (callBack)="onPagination($event)" [url]="url" ></app-pager>
+<button class="btn btn-primary save btn-sm" (click)="add()">Add</button>

@@ -1,0 +1,15 @@
+<ul class="pagination pagination-sm justify-content-end" *ngIf="data.totalPages > 0">
+  <li class="page-item" [ngClass]="{ disabled: data.first}">
+    <span class="page-link" (click)="navigate( data.number - 1 )" >Previous</span>
+  </li>
+
+  <li class="page-item"
+      *ngFor="let i of getPagesArray(data.totalPages)"
+      [ngClass]="{ active: i == data.number }">
+    <span class="page-link" (click)="navigate(i)">{{ i + 1 }}</span>
+  </li>
+
+  <li class="page-item" [ngClass]="{ disabled: data.last}">
+    <span class="page-link" (click)="navigate( data.number + 1 )">Next</span>
+  </li>
+</ul>

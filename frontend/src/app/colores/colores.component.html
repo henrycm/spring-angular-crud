@@ -1,0 +1,21 @@
+
+<table class="table table-bordered table-sm table-hover" >
+  <thead>
+    <tr>
+      <td>Id</td>
+      <td>Nombre</td>
+      <td>Activo</td>
+      <td>Action</td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let c of colores" >
+      <td>{{ c.id }}</td>
+      <td (click)="detail(c)">{{ c.nombre }}</td>
+      <td>{{ c.activo }}</td>
+      <td><button (click)="remove(c)" class="btn btn-primary btn-sm">X</button></td>
+    </tr>
+  </tbody>
+</table>
+<app-pager (callBack)="onPagination($event)" [url]="url" ></app-pager>
+<button class="btn btn-primary save btn-sm" (click)="add()">Add</button>

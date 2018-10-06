@@ -1,0 +1,17 @@
+<nav class="nav">
+  <a class="nav-link" [routerLink]="['/colores']">Colores</a>
+  <a class="nav-link" [routerLink]="['/productos']">Productos</a>
+</nav>
+<nav class="nav justify-content-end">
+  <a class="nav-link" href="#">Salir</a>
+</nav>
+
+<div class="container">
+  <div class="row main">
+    <div class="col-md-2" id="menu"></div>
+    <div class="col-md-8" id="mainContent">
+      <router-outlet></router-outlet>
+    </div>
+    <div class="col-md-2" id="left"></div>
+  </div>
+</div>

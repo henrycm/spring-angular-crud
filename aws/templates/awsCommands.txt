@@ -1,0 +1,20 @@
+aws cloudformation create-stack \
+--region us-east-1 \
+--capabilities=CAPABILITY_IAM \
+--stack-name agrosoft \
+--template-body file:////Users/henry/Documents/workspace/study/facturacion/aws/templates/web.yaml
+
+
+aws cloudformation validate-template \
+--region us-east-1 \
+--template-body file:////Users/henry/Documents/workspace/study/facturacion/aws/templates/web.yaml
+
+
+aws cloudformation delete-stack --region us-east-1 --stack-name agrosoft
+
+aws cloudformation describe-stacks --region us-east-1 --stack-name agrosoft
+
+aws ec2 describe-instances \
+--region us-east-1 \
+ --query "Reservations[*].Instances[*].PublicIpAddress" \
+ --output=text

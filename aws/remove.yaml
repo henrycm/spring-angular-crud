@@ -1,0 +1,15 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Remove web template
+      cloudformation:
+        stack_name: web
+        state: absent
+        region: us-east-1
+    - name: Remove infra template
+      cloudformation:
+        stack_name: infra
+        state: absent
+        region: us-east-1

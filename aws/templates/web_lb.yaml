@@ -1,0 +1,212 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  EnvName:
+    Description: Environment Name.
+    Default: test
+    Type: String
+  CodeBucketName:
+    Description: Bucket Name
+    Default: agrosoft-code
+    Type: String
+  AppFileName:
+    Description: Jar file to be deployed
+    Default: facturacion-1.0.0.jar
+    Type: String
+
+Resources:
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http acess
+      VpcId: !ImportValue VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 8080
+        ToPort: 8080
+        CidrIp: 0.0.0.0/0
+      Tags:
+      -
+        Key: Name
+        Value: !Sub SG-WEB-${EnvName}
+
+  ELBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http to ELB
+      VpcId: !ImportValue VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      Tags:
+      -
+        Key: Name
+        Value: !Sub SG-ELB-${EnvName}
+
+  RootRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        -
+          PolicyName: "root"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              -
+                Effect: "Allow"
+                Action: "s3:Get*"
+                Resource: !Join ["", ["", "arn:aws:s3:::", !Ref CodeBucketName, "/*"]]
+
+  RootInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+        -
+          Ref: "RootRole"
+
+  WebLoadBalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      Subnets:
+        - !ImportValue PublicSubnet
+      SecurityGroups:
+        - !Ref ELBSecurityGroup
+        - !Ref WebSecurityGroup
+      Listeners:
+      - LoadBalancerPort: 80
+        InstancePort: 8080
+        Protocol: HTTP
+      HealthCheck:
+        Target: HTTP:8080/facturacion/index.html
+        HealthyThreshold: 2
+        UnhealthyThreshold: 5
+        Interval: 30
+        Timeout: 5
+      Tags:
+      -
+        Key: Name
+        Value: !Sub ELB-${EnvName}
+
+  WebLaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          output: {all: ">> /var/log/cloud-init-output.log"}
+    Properties:
+      AssociatePublicIpAddress: true
+      SecurityGroups:
+        - !Ref WebSecurityGroup
+        - !ImportValue ControlSecurityGroup
+      ImageId: ami-0b33d91d
+      InstanceType: t2.micro
+      KeyName: henry
+      IamInstanceProfile: !Ref RootInstanceProfile
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -ex
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource WebLaunchConfiguration --region ${AWS::Region}
+          yum -y install java-1.8.0
+          yum -y remove java-1.7.0-openjdk
+          aws s3 cp s3://${CodeBucketName}/${AppFileName} /home/ec2-user/
+          nohup java -jar /home/ec2-user/${AppFileName} > /home/ec2-user/app.log 2>&1 </dev/null &
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebAutoScalingGroup --region ${AWS::Region}
+
+  WebAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AvailabilityZones:
+        - !Select [0, !GetAZs '']
+      VPCZoneIdentifier:
+        - !ImportValue PublicSubnet
+      LaunchConfigurationName:
+        Ref: WebLaunchConfiguration
+      MinSize: 1
+      MaxSize: 2
+      DesiredCapacity: 1
+      LoadBalancerNames:
+        - !Ref WebLoadBalancer
+      NotificationConfigurations:
+      - TopicARN: !ImportValue AwsNotificationTopic
+        NotificationTypes:
+        - autoscaling:EC2_INSTANCE_LAUNCH
+        - autoscaling:EC2_INSTANCE_LAUNCH_ERROR
+        - autoscaling:EC2_INSTANCE_TERMINATE
+        - autoscaling:EC2_INSTANCE_TERMINATE_ERROR
+      Tags:
+      -
+        Key: Name
+        Value: !Sub WebInstance-${EnvName}
+        PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: "PT5M"
+
+  WebServerScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref WebAutoScalingGroup
+      Cooldown: 60
+      ScalingAdjustment: 1
+  WebServerScaleDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref WebAutoScalingGroup
+      Cooldown: 60
+      ScalingAdjustment: -1
+
+  CPUAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Scale-up if CPU > 90% for 6 minutes
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 120
+      EvaluationPeriods: 3
+      Threshold: 90
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+      - !Ref WebServerScaleUpPolicy
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref WebAutoScalingGroup
+
+  CPUAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Scale-down if CPU < 70% for 6 minutes
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 120
+      EvaluationPeriods: 3
+      Threshold: 70
+      ComparisonOperator: LessThanThreshold
+      AlarmActions:
+      - !Ref WebServerScaleDownPolicy
+      Dimensions:
+      - Name: AutoScalingGroupName
+        Value: !Ref WebAutoScalingGroup
+
+Outputs:
+  URL:
+    Description: LB pubic URL
+    Value: !GetAtt WebLoadBalancer.DNSName

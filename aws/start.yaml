@@ -1,0 +1,92 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  environment:
+        AWS_PROFILE: henrycm
+  vars:
+    EnvName: dev
+    AppFileName: facturacion-1.0.0.jar
+    CodeBucketName: agrosoft-code
+    AWSRegion: us-east-1
+    ContextPath: facturacion
+    Action: "{{ action | default('create') }}"
+  tasks:
+    - name: Remove web template
+      cloudformation:
+        stack_name: web
+        state: absent
+        region: "{{ AWSRegion }}"
+      when: Action == "remove"
+    - name: Remove db template
+      cloudformation:
+        stack_name: db
+        state: absent
+        region: "{{ AWSRegion }}"
+      when: Action == "NEVER"
+    - name: Remove infra template
+      cloudformation:
+        stack_name: infra
+        state: absent
+        region: "{{ AWSRegion }}"
+      when: Action == "remove"
+
+    - name: launch infra template
+      cloudformation:
+        stack_name: infra
+        state: present
+        region: "{{ AWSRegion }}"
+        disable_rollback: true
+        template: "{{ playbook_dir }}/templates/infra.yaml"
+        template_parameters:
+          EnvName: "{{ EnvName }}"
+          CodeBucketName: "{{ CodeBucketName }}"
+        tags:
+          Stack: infra
+      register: infra_stack
+      when: Action == "create"
+    - name: launch db template
+      cloudformation:
+        stack_name: db
+        state: present
+        region: "{{ AWSRegion }}"
+        disable_rollback: false
+        template: "{{ playbook_dir }}/templates/db.yaml"
+        template_parameters:
+          EnvName: "{{ EnvName }}"
+        tags:
+          Stack: db
+      register: db_stack
+      when: Action == "NEVER"
+    - name: launch web template
+      cloudformation:
+        stack_name: web
+        state: present
+        region: "{{ AWSRegion }}"
+        disable_rollback: true
+        template: "{{ playbook_dir }}/templates/web.yaml"
+        template_parameters:
+          EnvName: "{{ EnvName }}"
+          AppFileName: "{{ AppFileName }}"
+          CodeBucketName: "{{ CodeBucketName }}"
+        tags:
+          Stack: web
+      register: web_stack
+      when: Action == "create"
+
+    - name: Check ELB URL
+      uri:
+        url: http://{{web_stack.stack_outputs.URL}}/{{ ContextPath }}
+        status_code: 200
+      register: elb_url
+      until: elb_url.status == 200
+      retries: 10
+      delay: 20
+      when: Action == "create"
+
+    - debug:
+        msg: "URL: {{ web_stack.stack_outputs.URL }}"
+      when: Action == "create"
+    - debug:
+        msg: "DBIP: {{ db_stack.stack_outputs.DBIP }}"
+      when: Action == "NEVER"

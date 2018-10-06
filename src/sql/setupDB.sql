@@ -1,0 +1,6 @@
+CREATE USER inventario IDENTIFIED BY inventario;
+
+GRANT CONNECT TO inventario;
+GRANT CREATE TABLE TO inventario;
+GRANT CREATE SEQUENCE TO inventario;
+GRANT UNLIMITED TABLESPACE TO inventario;
