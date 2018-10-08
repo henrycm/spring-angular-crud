@@ -15,18 +15,13 @@ Prerequisites
 - Gradle: https://gradle.org/
 - NodeJS: https://nodejs.org/en/ To assemble the frontend
 
-Running the application
+Run the application
 --------------
- **gradle build && java -jar build/libs/facturacion-1.0.0.jar**
-
-
-Run the application from the IDE
---------------
-- Start the backend from the IDE
+- Start the backend: **gradle clean bootRun**
 - From *"frontend"* directory:
 - **npm install**
 - **npm start**
-- The front end will start at http://localhost:3000, with a proxy to access the backend -> htttp://localhost:8080
+- The front end will start at http://localhost:4200, with a proxy to access the backend -> htttp://localhost:8080
 
 
 Assembly process

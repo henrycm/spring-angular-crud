@@ -7,7 +7,7 @@ export class AuthService {
 
   constructor(private http: Http) {}
 
-  private baseUrl = "/"
+  private baseUrl = "/api/"
   private url = this.baseUrl + "auth";
   private profile = {};
 
