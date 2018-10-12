@@ -5,7 +5,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve --proxy-config proxy.conf.json --host 0.0.0.0 --watch --base-href /",
-    "build": "ng build --base-href /facturacion/",
+    "build": "ng build --base-href /",
     "test": "ng test",
     "lint": "ng lint",
     "e2e": "ng e2e"

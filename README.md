@@ -27,3 +27,7 @@ Run the application
 Assembly process
 --------------
 When assembling **copyFront** is executed copying the contents from *frontend/app* to *build/resources/main/static*
+
+Test
+--------------
+Run **gradle clean test**
